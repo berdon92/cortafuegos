@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Cortafuegos — demo navegable del prototipo para la Beca de investigación de la Diputación de Valladolid 2026. Datos simulados.">
+<meta name="robots" content="noindex">
+<title>Cortafuegos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+<style>
+  :root{
+    --bg:#120f0e; --page:#0d0b0a; --surface:#1c1815; --surface2:#272220; --raise:#332c27;
+    --text:#f5efe4; --muted:#ab9f8f; --faint:#7d7365;
+    --ember:#ff7b3a; --ember2:#ffb45e; --ember-soft:rgba(255,123,58,.13);
+    --verde:#8fca6f; --ambar:#efc257; --rojo:#ff5d5d; --lila:#c5a3ff;
+    --line:rgba(245,239,228,.12); --line2:rgba(245,239,228,.2);
+    --fd:"Bricolage Grotesque","Instrument Sans",system-ui,sans-serif;
+    --fb:"Instrument Sans",-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--page);
+    background-image:radial-gradient(ellipse 90% 40% at 50% -5%, rgba(255,123,58,.16), transparent 60%);
+    color:var(--text);font-family:var(--fb);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;
+    min-height:100vh;position:relative;
+  }
+  /* grain */
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;opacity:.05;z-index:50;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.7'/%3E%3C/svg%3E");}
+  /* giant backdrop word (desktop) */
+  .bigword{display:none}
+  @media (min-width:920px){
+    .bigword{display:block;position:fixed;left:-30px;top:50%;transform:translateY(-50%) rotate(-90deg);transform-origin:left center;
+      font-family:var(--fd);font-weight:800;font-size:120px;letter-spacing:.04em;color:transparent;
+      -webkit-text-stroke:1px rgba(255,123,58,.14);user-select:none;pointer-events:none;white-space:nowrap;z-index:0}
+    .bigword.r{left:auto;right:-30px;transform:translateY(-50%) rotate(90deg);transform-origin:right center}
+  }
+
+  .demo-band{max-width:430px;margin:0 auto;padding:12px 18px 0;font-size:11px;color:var(--faint);letter-spacing:.03em;text-align:center;position:relative;z-index:1}
+  .demo-band strong{color:var(--muted);font-weight:600}
+
+  #app{max-width:430px;margin:10px auto 46px;background:var(--surface);border:1.5px solid var(--line2);border-radius:26px;min-height:660px;display:flex;flex-direction:column;position:relative;z-index:1;
+    box-shadow:0 0 0 6px rgba(255,123,58,.05), 0 30px 60px -20px rgba(0,0,0,.7)}
+  @media (max-width:470px){ #app{margin:8px 8px 24px;border-radius:20px} }
+
+  /* top bar — sticky: #app must NOT clip overflow or SALIR YA stops following the scroll */
+  .bar{display:flex;align-items:center;gap:10px;padding:14px 16px 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(28,24,21,.95);backdrop-filter:blur(6px);z-index:5;border-radius:24px 24px 0 0}
+  .bar .back{background:none;border:none;color:var(--muted);font-size:24px;line-height:1;padding:2px 8px 5px;margin-left:-8px;cursor:pointer;border-radius:10px;visibility:hidden}
+  .bar .back.on{visibility:visible}
+  .bar .back:hover{color:var(--ember)}
+  .wordmark{font-family:var(--fd);font-weight:800;font-size:18px;letter-spacing:.005em;flex:1;user-select:none}
+  .wordmark .gap{color:var(--ember);font-weight:400}
+  .salir{background:none;border:1.5px solid var(--ember);color:var(--ember);font-family:var(--fd);font-weight:700;font-size:12px;letter-spacing:.08em;padding:8px 13px;border-radius:999px;cursor:pointer;white-space:nowrap;transition:transform .12s ease}
+  .salir:hover{background:var(--ember);color:#171310;transform:rotate(-2deg) scale(1.04)}
+
+  /* marquee */
+  .marquee{overflow:hidden;border-bottom:1px solid var(--line);background:var(--ember);white-space:nowrap;padding:6px 0}
+  .marquee .mtrack{display:inline-block;animation:mq 22s linear infinite;font-family:var(--fd);font-weight:700;font-size:11.5px;letter-spacing:.14em;color:#171310}
+  @keyframes mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  @media (prefers-reduced-motion:reduce){ .marquee .mtrack{animation:none} }
+
+  .scr{padding:24px 20px 32px;flex:1;animation:in .22s cubic-bezier(.2,.7,.3,1)}
+  @keyframes in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){ .scr{animation:none} }
+
+  h1{font-family:var(--fd);font-weight:800;font-size:33px;line-height:1.06;margin:0 0 12px;text-wrap:balance;letter-spacing:-.01em}
+  h1 .hi{color:var(--ember)}
+  h2{font-family:var(--fd);font-weight:800;font-size:23px;line-height:1.12;margin:0 0 10px;text-wrap:balance}
+  h3{font-family:var(--fd);font-weight:700;font-size:16px;margin:22px 0 8px}
+  p{margin:0 0 12px}
+  .mut{color:var(--muted)} .small{font-size:13.5px} .xs{font-size:12px}
+
+  /* firebreak strip */
+  .strip{display:flex;align-items:center;height:6px;margin:16px 0 22px}
+  .strip i{display:block;height:6px;background:var(--raise);flex:1;border-radius:3px}
+  .strip i.f{background:linear-gradient(90deg,var(--ember),var(--ember2));flex:0 0 38px;margin:0 8px;animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+  @media (prefers-reduced-motion:reduce){ .strip i.f{animation:none} }
+
+  /* doors */
+  .door{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--surface2);border:1.5px solid var(--line2);border-radius:18px;padding:16px 18px;margin:0 0 11px;cursor:pointer;color:var(--text);font-family:var(--fb);transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease}
+  .door:hover{transform:translate(-2px,-2px) rotate(-.4deg);border-color:var(--ember);box-shadow:5px 5px 0 rgba(255,123,58,.35)}
+  .door .dtxt{flex:1}
+  .door b{display:block;font-family:var(--fd);font-weight:700;font-size:18px;margin-bottom:3px;letter-spacing:-.01em}
+  .door span{color:var(--muted);font-size:13.5px;line-height:1.4;display:block}
+  .door .arr{font-family:var(--fd);font-weight:800;font-size:22px;color:var(--ember);transition:transform .14s ease}
+  .door:hover .arr{transform:translateX(4px)}
+  .door.test{background:linear-gradient(135deg,var(--ember),#ff9a3a);border-color:transparent;color:#1b1410}
+  .door.test b{color:#1b1410}
+  .door.test span{color:rgba(27,20,16,.75)}
+  .door.test .arr{color:#1b1410}
+  .door.test:hover{box-shadow:5px 5px 0 rgba(255,123,58,.25)}
+  .counter{font-size:12px;color:var(--faint);margin:4px 2px 0}
+  .counter b{color:var(--ember);font-variant-numeric:tabular-nums}
+  .linkrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+  .linkrow button{background:none;border:1.5px dashed var(--line2);color:var(--muted);border-radius:999px;padding:8px 14px;font-size:12.5px;cursor:pointer;font-family:var(--fb);font-weight:500;transition:all .12s ease}
+  .linkrow button:hover{color:var(--text);border-color:var(--ember);border-style:solid;transform:rotate(1deg)}
+
+  /* options */
+  .opt{display:block;width:100%;text-align:left;background:var(--surface2);border:1.5px solid var(--line);border-radius:14px;padding:14px 17px;margin:0 0 9px;cursor:pointer;color:var(--text);font-size:15.5px;font-family:var(--fb);font-weight:500;line-height:1.4;transition:transform .12s ease,border-color .12s ease}
+  .opt:hover{border-color:var(--ember);transform:translateX(4px)}
+  .qnum{font-family:var(--fd);font-size:11px;letter-spacing:.16em;color:var(--ember);text-transform:uppercase;margin:0 0 8px;font-weight:700}
+  .dots{display:flex;gap:6px;margin:0 0 14px}
+  .dots i{width:22px;height:5px;border-radius:3px;background:var(--raise)}
+  .dots i.on{background:var(--ember)}
+
+  /* buttons */
+  .btn{display:inline-block;background:var(--ember);color:#1b1410;border:none;border-radius:999px;padding:14px 26px;font-weight:700;font-size:15.5px;cursor:pointer;font-family:var(--fd);letter-spacing:.01em;transition:transform .12s ease}
+  .btn:hover{transform:rotate(-1deg) scale(1.03)}
+  .btn.ghost{background:none;border:1.5px solid var(--line2);color:var(--text)}
+  .btn.ghost:hover{border-color:var(--ember)}
+  .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+  button:focus-visible,.door:focus-visible,.opt:focus-visible,select:focus-visible{outline:2.5px solid var(--ember);outline-offset:2px}
+
+  /* plan steps */
+  .step{border:1.5px solid var(--line);border-radius:16px;margin-bottom:10px;overflow:hidden;background:var(--surface2)}
+  .step summary{list-style:none;display:flex;align-items:flex-start;gap:12px;padding:14px 15px;cursor:pointer}
+  .step summary::-webkit-details-marker{display:none}
+  .step .n{font-family:var(--fd);font-weight:800;font-size:20px;color:var(--ember);min-width:24px;line-height:1.1;opacity:.85}
+  .step .t{flex:1}
+  .step .t b{font-weight:600;font-size:15.5px;display:block;line-height:1.35}
+  .tag{display:inline-block;font-family:var(--fd);font-size:10px;font-weight:700;letter-spacing:.13em;padding:3px 9px;border-radius:6px;margin-top:6px;transform:rotate(-1.2deg)}
+  .tag.ahora{background:var(--ember);color:#1b1410}
+  .tag.luego{background:rgba(171,159,143,.16);color:var(--muted);transform:rotate(1deg)}
+  .step .body{padding:0 15px 14px 51px;color:var(--muted);font-size:14px;line-height:1.55}
+  .step .body p{color:var(--muted);margin-bottom:8px}
+  .step[open]{border-color:rgba(255,123,58,.45)}
+  .done{margin-left:auto;flex:0 0 auto;width:24px;height:24px;border:1.5px solid var(--faint);border-radius:8px;background:none;cursor:pointer;padding:0;transition:all .12s ease}
+  .done.on{background:var(--verde);border-color:var(--verde);transform:rotate(-6deg)}
+
+  /* chips / semáforo */
+  .chip{display:inline-block;font-family:var(--fd);font-size:10.5px;font-weight:700;letter-spacing:.1em;padding:4px 10px;border-radius:7px;transform:rotate(-1.5deg)}
+  .chip.v{background:rgba(143,202,111,.18);color:var(--verde);border:1px solid rgba(143,202,111,.35)}
+  .chip.a{background:rgba(239,194,87,.15);color:var(--ambar);border:1px solid rgba(239,194,87,.35);transform:rotate(1deg)}
+  .chip.r{background:rgba(255,93,93,.15);color:var(--rojo);border:1px solid rgba(255,93,93,.4);transform:rotate(-1deg)}
+  .sem{border:1.5px solid var(--line);border-radius:16px;margin-bottom:10px;background:var(--surface2)}
+  .sem summary{list-style:none;display:flex;align-items:center;gap:11px;padding:14px 15px;cursor:pointer}
+  .sem summary::-webkit-details-marker{display:none}
+  .sem summary b{font-weight:600;font-size:15px;flex:1;line-height:1.35}
+  .sem .body{padding:0 15px 13px;color:var(--muted);font-size:13.5px;line-height:1.5}
+  .sem[open]{border-color:var(--line2)}
+
+  /* cards & notes */
+  .card{background:var(--surface2);border:1.5px solid var(--line);border-radius:16px;padding:16px 18px;margin-bottom:12px}
+  .card.pop{border-color:var(--line2);box-shadow:4px 4px 0 rgba(255,123,58,.18)}
+  .note{border-left:3px solid var(--ember);padding:2px 0 2px 14px;margin:18px 0;color:var(--muted);font-size:14px}
+  .quote{font-family:var(--fd);font-weight:600;font-size:17px;line-height:1.42;color:var(--text)}
+  .sim{font-family:var(--fd);font-size:10px;color:var(--faint);letter-spacing:.1em;text-transform:uppercase;font-weight:700}
+
+  /* bars (espejo) */
+  .bars{margin:14px 0 6px}
+  .brow{margin-bottom:13px}
+  .brow .lbl{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:5px;gap:10px}
+  .brow .lbl b{color:var(--text);font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .track{height:14px;background:var(--raise);border-radius:7px;overflow:hidden}
+  .fill{height:100%;border-radius:7px;background:linear-gradient(90deg,var(--ember),var(--ember2));transition:width .7s cubic-bezier(.2,.7,.3,1)}
+  .fill.g{background:linear-gradient(90deg,#6da654,var(--verde))}
+  .bignum{font-family:var(--fd);font-weight:800;font-size:54px;line-height:1;color:var(--ember);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+  /* slider */
+  .slwrap{margin:10px 0 4px}
+  input[type=range]{width:100%;accent-color:var(--ember);height:32px}
+  .slval{font-family:var(--fd);font-weight:800;font-size:46px;text-align:center;margin-top:0;font-variant-numeric:tabular-nums;color:var(--ember)}
+
+  select{width:100%;background:var(--surface2);color:var(--text);border:1.5px solid var(--line2);border-radius:13px;padding:13px 15px;font-size:15px;font-family:var(--fb)}
+
+  .tel{display:flex;justify-content:space-between;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--line);gap:12px}
+  .tel:last-child{border-bottom:none}
+  .tel b{font-family:var(--fd);font-weight:800;font-size:21px;color:var(--ember);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tel span{color:var(--muted);font-size:13px;text-align:right}
+
+  ul.clean{margin:0 0 12px;padding-left:18px;color:var(--muted);font-size:14px}
+  ul.clean li{margin-bottom:7px}
+  .foot{padding:14px 20px 18px;border-top:1px solid var(--line);color:var(--faint);font-size:11px;text-align:center;letter-spacing:.02em;border-radius:0 0 24px 24px}
+
+  /* weather (salir ya) */
+  .wx{background:#dfe8ef;color:#232a30;flex:1;padding:26px 22px;font-family:var(--fb);border-radius:0 0 24px 24px}
+  .wx h2{color:#232a30;font-family:var(--fb);font-weight:600;font-size:18px;margin-bottom:2px}
+  .wx .deg{font-size:64px;font-weight:300;margin:8px 0 2px;font-variant-numeric:tabular-nums}
+  .wx .row{display:flex;justify-content:space-between;border-top:1px solid rgba(35,42,48,.15);padding:10px 0;font-size:14px}
+  .wx .back-demo{margin-top:34px;font-size:11px;color:#8a949c;background:none;border:none;cursor:pointer;text-decoration:underline}
+
+  .aula-code{font-family:var(--fd);font-weight:800;font-size:62px;letter-spacing:.16em;text-align:center;color:var(--ember);margin:10px 0 4px;text-shadow:0 0 40px rgba(255,123,58,.4)}
+</style>
+<style>html,body{background:#0d0b0a} img{max-width:100%}</style>
+</head>
+<body>
+<div class="bigword" aria-hidden="true">CORTAFUEGOS</div>
+<div class="bigword r" aria-hidden="true">CORTAFUEGOS</div>
+
+<div class="demo-band"><strong>DEMO NAVEGABLE</strong> · prototipo para la Beca de investigación de la Diputación de Valladolid 2026 · todos los datos, horarios y cifras son <strong>simulados</strong></div>
+
+<div id="app">
+  <div class="bar">
+    <button class="back" id="backBtn" aria-label="Volver">‹</button>
+    <div class="wordmark">corta<span class="gap">‖</span>fuegos</div>
+    <button class="salir" id="salirBtn">SALIR YA</button>
+  </div>
+  <div id="mq" class="marquee" aria-hidden="true"><div class="mtrack">SIN CUENTA · SIN INSTALACIÓN · SIN RASTRO · NO PIDE TU NOMBRE · NO PIDE LA FOTO · SIN CUENTA · SIN INSTALACIÓN · SIN RASTRO · NO PIDE TU NOMBRE · NO PIDE LA FOTO · </div></div>
+  <div id="screen" class="scr" tabindex="-1"></div>
+  <div class="foot" id="foot">Esta página no se queda en tu historial · prototipo, datos simulados</div>
+</div>
+
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const scr = $('#screen'), backBtn = $('#backBtn'), mq = $('#mq');
+  let stack = [];
+  let current = null;
+  const st = { triaje:{}, test:{}, norma:5, municipio:'' };
+  /* pantallas serenas: sin marquee (el confeti se apaga donde duele) */
+  const CALM = new Set(['plan','hoja','optin','gracias','gracias2','amiga','semaforo','rutas','trastienda','separa','triaje1','triaje2','triaje3','triaje4']);
+
+  function render(name){
+    current = name;
+    scr.innerHTML = S[name]();
+    backBtn.classList.toggle('on', stack.length>0);
+    mq.style.display = CALM.has(name) ? 'none' : '';
+    if(hooks[name]) hooks[name]();
+    window.scrollTo({top:0});
+    scr.focus({preventScroll:true});
+  }
+  function go(name){ if(current) stack.push(current); render(name); }
+  backBtn.onclick = ()=>{ if(stack.length) render(stack.pop()); };
+
+  /* SALIR YA -> weather */
+  $('#salirBtn').onclick = ()=>{
+    $('#foot').style.display='none'; mq.style.display='none';
+    scr.classList.remove('scr');
+    scr.innerHTML = `
+      <div class="wx">
+        <h2>El tiempo · Valladolid</h2>
+        <div style="font-size:13px;color:#5c666e">lunes · cielos despejados</div>
+        <div class="deg">21°</div>
+        <div style="font-size:14px;margin-bottom:18px">Máx. 29° · Mín. 12°</div>
+        <div class="row"><span>Martes</span><span>☀️ 30° / 13°</span></div>
+        <div class="row"><span>Miércoles</span><span>⛅ 27° / 12°</span></div>
+        <div class="row"><span>Jueves</span><span>☀️ 28° / 11°</span></div>
+        <div class="row"><span>Viernes</span><span>🌤 26° / 10°</span></div>
+        <button class="back-demo" id="wxback">← volver a la demo (este enlace no existiría en la web real)</button>
+      </div>`;
+    $('#wxback').onclick = ()=>{ scr.classList.add('scr'); $('#foot').style.display=''; stack=[]; current=null; render('home'); };
+  };
+
+  const chip = c => ({v:'<span class="chip v">VERDE</span>',a:'<span class="chip a">ÁMBAR</span>',r:'<span class="chip r">ROJO</span>'})[c];
+  const dots = (n,total)=>`<div class="dots">${Array.from({length:total},(_,i)=>`<i class="${i<n?'on':''}"></i>`).join('')}</div>`;
+
+  const S = {}, hooks = {};
+
+  /* ---------- HOME ---------- */
+  S.home = ()=>`
+    <h1>Si algo se te ha ido de las manos en el móvil, <span class="hi">aquí hay pasos.</span></h1>
+    <div class="strip"><i></i><i class="f"></i><i></i></div>
+    <button class="door" data-go="separa"><span class="dtxt"><b>Me está pasando algo</b><span>Una foto que circula, alguien que amenaza o presiona. Vamos por partes.</span></span><span class="arr">→</span></button>
+    <button class="door" data-go="semaforo"><span class="dtxt"><b>Me mira el móvil</b><span>El semáforo: qué puedes cerrar hoy sin que se note, y qué sí se nota.</span></span><span class="arr">→</span></button>
+    <button class="door" data-go="amiga"><span class="dtxt"><b>Le pasa a alguien que conozco</b><span>Te lo acaba de contar y no sabes qué decir. Sí sabes: está aquí.</span></span><span class="arr">→</span></button>
+    <button class="door" data-go="foto"><span class="dtxt"><b>Me ha llegado una foto</b><span>Treinta segundos deciden si esto se para o sigue.</span></span><span class="arr">→</span></button>
+    <button class="door test" data-go="test"><span class="dtxt"><b>¿Cómo lo ves tú?</b><span>Tres minutos. Al final te comparas con la gente de tu edad de tu comarca.</span></span><span class="arr">→</span></button>
+    <div class="counter"><b>1.243</b> personas de la provincia ya han contestado <span class="sim">· simulado</span></div>
+    <div class="linkrow">
+      <button data-go="rutas">📍 Dónde está tu gente</button>
+      <button data-go="aula">Vengo de clase</button>
+      <button data-go="trastienda">Qué guardamos (y qué no)</button>
+    </div>`;
+
+  /* --- separación de tráfico --- */
+  S.separa = ()=>`
+    <div class="qnum">Antes de nada</div>
+    <h2>¿Esto te está pasando ahora, o estás mirando cómo funciona?</h2>
+    <p class="mut small">Da igual la respuesta: puedes verlo todo. Solo nos sirve para no mezclar datos.</p>
+    <button class="opt" data-go="triaje1">Me está pasando ahora</button>
+    <button class="opt" data-go="triaje1">Solo estoy mirando</button>`;
+
+  /* --- triaje --- */
+  S.triaje1 = ()=>`
+    ${dots(1,4)}<div class="qnum">Sin campos de texto · nada que escribir</div>
+    <h2>¿Qué ha pasado?</h2>
+    <button class="opt" data-t1="real" data-go="triaje2">Han difundido algo íntimo mío que era real</button>
+    <button class="opt" data-t1="ia" data-go="triaje2">Han hecho una imagen falsa mía, o un desnudo con IA</button>
+    <button class="opt" data-t1="sextor" data-go="triaje2">Me amenazan con publicar si no pago o no mando más</button>
+    <button class="opt" data-t1="presion" data-go="triaje2">Me están presionando para que mande fotos</button>
+    <button class="opt" data-t1="miedo" data-go="triaje2">Aún no ha pasado, pero tengo miedo de que pase</button>`;
+  S.triaje2 = ()=>`
+    ${dots(2,4)}
+    <h2>¿Cuántos años tienes?</h2>
+    <p class="mut small">Cambia la ruta entera: hay una vía específica si tienes menos de 18, y funciona mejor.</p>
+    <button class="opt" data-t2="menor" data-go="triaje3">Menos de 18</button>
+    <button class="opt" data-t2="mayor" data-go="triaje3">18 o más</button>`;
+  S.triaje3 = ()=>`
+    ${dots(3,4)}
+    <h2>¿Por dónde está circulando?</h2>
+    <button class="opt" data-go="triaje4">Un grupo de WhatsApp o Telegram</button>
+    <button class="opt" data-go="triaje4">Instagram o TikTok</button>
+    <button class="opt" data-go="triaje4">Una web</button>
+    <button class="opt" data-go="triaje4">Me lo han enseñado, no sé dónde está</button>`;
+  S.triaje4 = ()=>`
+    ${dots(4,4)}
+    <h2>¿Sabes quién ha sido?</h2>
+    <button class="opt" data-go="plan">Sí, alguien del pueblo o del instituto</button>
+    <button class="opt" data-go="plan">Sí, mi ex</button>
+    <button class="opt" data-go="plan">Alguien de internet que no conozco</button>
+    <button class="opt" data-go="plan">No lo sé</button>`;
+
+  /* --- plan 24h --- */
+  const planIntro = ()=> st.triaje.t2==='menor'
+    ? 'Tienes menos de 18. Eso aquí juega a tu favor: hay una vía pensada para ti (Take It Down) y lo que te han hecho es más grave para quien lo hizo, no para ti.'
+    : 'Vamos con tu plan. Está ordenado: lo de arriba es para ahora; lo de abajo puede esperar a mañana.';
+  const via = ()=> st.triaje.t2==='menor'
+    ? `<p><b style="color:var(--text)">Take It Down</b> (para menores de 18): no subes la foto a ningún sitio. Tu móvil calcula una huella —un código— y son las plataformas las que buscan esa huella y frenan la imagen. La foto no sale de tu móvil.</p>`
+    : `<p><b style="color:var(--text)">StopNCII</b>: no subes la foto a ningún sitio. Tu móvil calcula una huella —un código— y son las plataformas las que buscan esa huella y frenan la imagen. La foto no sale de tu móvil.</p>`;
+  S.plan = ()=>`
+    <h2>Tu plan de las primeras 24 horas</h2>
+    <p class="mut small">${planIntro()}</p>
+    <p class="quote">«Vale. Esto tiene pasos, y el primero te va a sonar raro: no borres nada todavía.»</p>
+    ${step(1,'ahora','No borres nada todavía',`<p>Esa conversación es la prueba, y sin ella todo se queda en tu palabra. Borrar es lo que él espera que hagas.</p>`)}
+    ${step(2,'ahora','No pagues y no mandes más',`<p>Pagar nunca lo para: confirma que funcionó. Y una foto más nunca es la última. Se corta aquí.</p>`)}
+    ${step(3,'ahora','Captura bien',`<p>Pantallazo donde se vea el nombre de usuario, la fecha y la hora. Copia el enlace del perfil y del contenido. No recortes nada.</p><p>${chip('a')}&nbsp; Un pantallazo normal no avisa a nadie. Pero los mensajes efímeros —Snapchat, las fotos de «ver una vez»— sí avisan a quien los mandó cuando los capturas. Antes de capturar, te decimos cuáles.</p>`)}
+    ${step(4,'ahora','Córtale la circulación',
+      via()+
+      `<p><b style="color:var(--text)">Canal prioritario de la AEPD</b>: la única vía en España que puede obligar a retirar con carácter urgente. Sí, toca rellenar un formulario de la Agencia Española de Protección de Datos. Es tan aburrido como suena y es de las pocas cosas en este país que obliga de verdad a retirar algo rápido. Te lo dejamos casi hecho.</p>
+       <p><b style="color:var(--text)">017 (INCIBE)</b>: el teléfono español para exactamente esto. Gratis. Puedes llamar solo por una foto: no es denunciar.</p>
+       <p>${chip('v')}&nbsp; Todo lo de este paso es invisible para él: ni la huella, ni el formulario, ni denunciar la cuenta le dicen a nadie quién lo hizo. Puedes empezar a moverte sin que se entere.</p>
+       <p>${chip('r')}&nbsp; Bloquearlo sí lo va a notar. Si es tu ex y todavía conoce tus contraseñas o ve tu ubicación, pásate antes por «Me mira el móvil»: allí está el semáforo completo.</p>
+       <p class="sim">En la web real, junto a cada vía: el tiempo que tardó de verdad, medido por el equipo — «en nuestra prueba de marzo de 2027, esta plataforma retiró en 4 días» (simulado)</p>`)}
+    ${step(5,'luego','Denunciar o no: tú decides, con la información delante',`<p>Las dos columnas, honestas: qué aporta denunciar y qué cuesta. Y tu cuartel: en la web real, aquí sale el puesto de la Guardia Civil de tu municipio con dirección, teléfono y horario comprobado uno a uno.</p>`)}
+    ${step(6,'luego','Si ha sido alguien de clase',`<p>Tu instituto tiene una persona coordinadora de bienestar y protección. Puede actuar aunque haya pasado un sábado y fuera del centro. Aquí te decimos cómo plantearlo.</p>`)}
+    ${step(7,'luego','Y tú, ¿cómo estás?',`<p>Si ahora mismo estás fatal, deja de leer pantallas. El 016 es gratis, no sale en la factura del móvil y al otro lado hay personas a las tres de la mañana. Si tienes menos de 18, el 900 20 20 10 (ANAR) es lo mismo. Puedes llamar solo para que alguien te escuche.</p>`)}
+    <div class="note">«Nadie puede prometerte que esa imagen desaparezca de internet. Lo que sí se puede hacer, y funciona más veces de las que crees, es cortarle la circulación donde de verdad te duele: los sitios donde la va a ver la gente que te conoce. A eso vamos.»<br><br>«Y no, mandarla no fue el error. El error lo cometió quien la reenvió, y además es delito.»</div>
+    <div class="btnrow">
+      <button class="btn" data-go="hoja">Ver mi hoja</button>
+      <button class="btn ghost" data-go="rutas">Dónde está tu gente</button>
+    </div>`;
+  function step(n,tag,title,body){
+    return `<details class="step"><summary><span class="n">${n}</span><span class="t"><b>${title}</b><span class="tag ${tag}">${tag==='ahora'?'AHORA':'CUANDO PUEDAS'}</span></span><button class="done" data-done aria-label="Marcar hecho"></button></summary><div class="body">${body}</div></details>`;
+  }
+
+  S.hoja = ()=>`
+    <h2>Tu hoja</h2>
+    <p class="mut small">En la web real esto es un PDF que se genera en tu propio móvil: nada sube a ningún servidor. Descargarlo deja un archivo en el móvil, y te lo avisamos antes.</p>
+    <div class="card pop">
+      <div class="sim">Vista previa · simulada</div>
+      <h3 style="margin-top:6px">Mis pasos</h3>
+      <ul class="clean">
+        <li>☐ Conservar la conversación (no borrar)</li>
+        <li>☐ Capturas con usuario, fecha y enlace</li>
+        <li>☐ Huella en ${st.triaje.t2==='menor'?'Take It Down':'StopNCII'}</li>
+        <li>☐ Formulario canal prioritario AEPD</li>
+        <li>☐ Llamar al 017 si me atasco</li>
+      </ul>
+      <h3>Mis teléfonos</h3>
+      <div class="tel"><b>016</b><span>24 horas · gratis · no sale en la factura</span></div>
+      <div class="tel"><b>017</b><span>INCIBE · retirada de contenido y sextorsión</span></div>
+      <div class="tel"><b>900 20 20 10</b><span>ANAR · si tienes menos de 18</span></div>
+      <div class="tel"><b>112</b><span>si hay peligro ahora mismo</span></div>
+    </div>
+    <div class="btnrow"><button class="btn" data-go="optin">Terminar</button></div>`;
+
+  S.optin = ()=>`
+    <h2>¿Nos dejas que esto cuente?</h2>
+    <p>Esto que acabas de vivir no aparece en ninguna estadística. Si nos dejas que cuente, aparecerá.</p>
+    <p class="mut small">Son cuatro preguntas y ninguna pide tu nombre. Sirve para que la Diputación sepa qué está pasando en los pueblos y dónde falla la ayuda. Si dices que no, no cambia nada de lo que has visto.</p>
+    <div class="btnrow">
+      <button class="btn" data-go="gracias">Vale, que cuente</button>
+      <button class="btn ghost" data-go="gracias2">No, gracias</button>
+    </div>`;
+  S.gracias = ()=>`
+    <h2>Hecho.</h2>
+    <p>Sin nombre, sin municipio exacto, sin nada que te señale. Solo cuenta.</p>
+    <p class="mut small">En la web real, aquí se enviarían cuatro respuestas anónimas: qué tipo de caso, tramo de edad, zona y hasta qué paso llegaste. Nada más.</p>
+    <div class="btnrow"><button class="btn ghost" data-go="home">Volver al inicio</button></div>`;
+  S.gracias2 = ()=>`
+    <h2>Perfecto también.</h2>
+    <p class="mut">Lo importante ya lo tienes: tu plan. Cuídate.</p>
+    <div class="btnrow"><button class="btn ghost" data-go="home">Volver al inicio</button></div>`;
+
+  /* --- semáforo --- */
+  S.semaforo = ()=>`
+    <h2>Me mira el móvil</h2>
+    <p class="quote">«Antes de tocar nada: hay cambios que se notan y cambios que no. Aquí va lo que puedes cerrar hoy sin que se entere nadie, y lo que conviene hacer todo de golpe y con alguien al lado.»</p>
+    <div class="qnum" style="margin-top:10px">El semáforo</div>
+    <p class="mut small">Cada acción lleva un color. No mide lo grave que es: mide si la otra persona <b style="color:var(--text)">se entera</b>.</p>
+    <div class="card" style="padding:13px 15px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">${chip('v')}<span class="small mut">hazlo hoy: no lo nota nadie</span></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">${chip('a')}<span class="small mut">no avisa, pero se nota si va a mirar</span></div>
+      <div style="display:flex;align-items:center;gap:10px">${chip('r')}<span class="small mut">lo va a saber: se hace con plan y con alguien al lado</span></div>
+    </div>
+    <p class="mut xs" style="margin:0 0 14px">Toca cada fila para ver el porqué.</p>
+    ${sem('v','Ver quién tiene tu ubicación','Mirar no avisa a nadie en Google Maps ni en iPhone (ojo: si hay control parental con panel de actividad, ahí sí puede quedar registro). Entra en Compartir ubicación y mira la lista. Solo mirar.')}
+    ${sem('v','Ver tus sesiones abiertas','En WhatsApp, Instagram y tu correo puedes ver desde qué aparatos está abierta tu cuenta. Mirar la lista no avisa a nadie.')}
+    ${sem('v','Quitar la última conexión y los dobles checks azules','Ajustes de privacidad de WhatsApp. Nadie recibe ningún aviso. A cambio, tú tampoco ves los suyos: te lo decimos para que no te pille de sorpresa.')}
+    ${sem('a','Cerrar una sesión abierta en otro aparato','No manda notificación, pero si esa persona usa esa sesión, dejará de funcionarle y lo notará cuando vaya a mirar.')}
+    ${sem('a','Cambiar la contraseña del correo','No avisa por sí solo, pero cierra sesiones en otros aparatos: quien las usara lo nota al entrar. Y ojo: si el teléfono de recuperación de tu correo es el suyo, cambiarla puede mandarle un aviso. Compruébalo antes (te enseñamos dónde).')}
+    ${sem('r','Dejar de compartir la ubicación','Le salta un aviso o lo verá en cuanto abra el mapa: sabrá el día y la hora. No lo hagas suelto. Se hace con un plan, todo de golpe, el día que tú decidas, y mejor con alguien al lado. Te ayudamos a ordenarlo, y para decidir el cuándo está tu CEAS.')}
+    ${sem('r','Quitarle el acceso a una cuenta compartida (Netflix, Spotify, familiar)','Lo va a saber. Va en el mismo plan de golpe, no antes.')}
+    <div class="note">Cerrar accesos mejora tu <b>privacidad</b>, no tu <b>seguridad</b>. Si alguien te vigila, la privacidad se arregla con ajustes; la seguridad se arregla con gente. Por eso los pasos rojos van acompañados.</div>
+    <div class="btnrow">
+      <button class="btn" data-go="optin">He terminado por hoy</button>
+      <button class="btn ghost" data-go="rutas">Dónde está tu gente</button>
+    </div>`;
+  function sem(c,t,body){ return `<details class="sem"><summary>${chip(c)}<b>${t}</b></summary><div class="body">${body}</div></details>`; }
+
+  /* --- amiga --- */
+  S.amiga = ()=>`
+    <h2>Te lo acaba de contar</h2>
+    <p class="mut small">Has hecho ya lo más difícil que hay en esto: ser la persona a la que se lo cuenta. Casi nadie llama a un teléfono; casi todas se lo cuentan a una amiga. O sea, a ti.</p>
+    <h3>Lo que sirve</h3>
+    <ul class="clean">
+      <li>Escúchala sin cara de drama. Si te asustas tú, deja de contar.</li>
+      <li>No le pidas ver la foto. Nunca. Para ayudar no hace falta.</li>
+      <li>No decidas por ella. Tu trabajo no es arreglarlo: es que no esté sola mientras lo arregla.</li>
+      <li>Pásale esto: que abra la puerta «Me está pasando algo». El plan está ahí.</li>
+    </ul>
+    <h3>Frases que sirven</h3>
+    <div class="card"><p class="quote" style="font-size:15px;margin:0">«Gracias por contármelo. No te va a caer ninguna bronca por mi parte.»</p></div>
+    <div class="card"><p class="quote" style="font-size:15px;margin:0">«No borres nada todavía, ¿vale? Eso es la prueba. Lo miramos juntas.»</p></div>
+    <div class="card"><p class="quote" style="font-size:15px;margin:0">«¿Quieres que llamemos al 017? Es gratis y solo es preguntar, no es denunciar.»</p></div>
+    <h3>Lo que no se hace nunca</h3>
+    <ul class="clean">
+      <li>Decirle que borre la conversación.</li>
+      <li>Prometerle que no se va a enterar nadie: en un pueblo no lo puedes prometer. Sí puedes prometer que tú no lo vas a contar.</li>
+      <li>Ir a encararte con quien lo mandó sin hablarlo con ella: la que paga las consecuencias es ella.</li>
+    </ul>
+    <div class="card">
+      <div class="tel"><b>016</b><span>24 h · también para ti, que la acompañas</span></div>
+      <div class="tel"><b>900 20 20 10</b><span>ANAR · si ella o tú tenéis menos de 18</span></div>
+    </div>
+    <div class="btnrow"><button class="btn" data-go="separa">Ver su plan de 24 horas</button></div>`;
+
+  /* --- foto recibida --- */
+  S.foto = ()=>`
+    <h2>Te ha llegado una foto de alguien que conoces</h2>
+    <p class="quote">«Lo que hagas en los próximos treinta segundos decide si esto se para aquí o sigue. Van tres cosas, y ninguna te complica la vida.»</p>
+    <div class="card pop"><b>1 · No la reenvíes.</b><p class="mut small" style="margin:4px 0 0">Reenviarla es difundirla: legalmente es lo mismo que haber empezado. Guardarla, también. Bórrala de tu descarga automática.</p></div>
+    <div class="card pop"><b>2 · No hace falta que montes nada en el grupo.</b><p class="mut small" style="margin:4px 0 0">Un «yo esto no lo paso» en privado a quien la mandó corta más cadenas de las que crees. Y si no te sale, con no reenviar ya has hecho la mitad.</p></div>
+    <div class="card pop"><b>3 · Pásale esta web a ella.</b><p class="mut small" style="margin:4px 0 0">Sin comentarios, sin preguntas. Solo el enlace. Ella sabrá qué hacer con él.</p></div>
+    <h3>Y ahora la difícil</h3>
+    <p class="mut small">De cada 10 personas de tu edad de tu pueblo, ¿cuántas crees que dirían algo si vieran esa foto en el grupo?</p>
+    <div class="slwrap"><input type="range" min="0" max="10" value="3" id="slfoto" aria-label="De cada diez, cuántas dirían algo"><div class="slval" id="slfotoval">3</div></div>
+    <button class="btn" id="fotorev">Ver qué contestan los demás</button>
+    <div id="fotoout"></div>`;
+  hooks.foto = ()=>{
+    const sl=$('#slfoto'), v=$('#slfotoval');
+    sl.oninput=()=>v.textContent=sl.value;
+    $('#fotorev').onclick=()=>{
+      $('#fotoout').innerHTML = `<div class="note" style="margin-top:16px">Tú has dicho <b>${sl.value} de 10</b>. De la gente de tu edad que ha contestado en tu zona, <b>7 de 10</b> dijeron que dirían algo <span class="sim">(simulado)</span>.<br><br>Casi todo el mundo cree que a los demás les parece bien. Y no: la mayoría está igual que tú, esperando a que alguien lo diga primero.</div>`;
+    };
+  };
+
+  /* --- test / espejo --- */
+  const TQ = [
+    ['¿Te suena? Alguien de tu edad que mira el móvil de su pareja «porque no tiene nada que esconder».',['Me suena mucho','Alguna vez','No me suena']],
+    ['¿Te ha llegado alguna vez por un grupo una foto íntima de alguien que conoces?',['Sí','Creo que sí','Nunca']],
+    ['¿Conoces a alguien que comparta la ubicación en tiempo real con su pareja?',['A varias personas','A alguien','A nadie']],
+    ['¿Has visto enfadarse a alguien porque su pareja «tardó en contestar»?',['Muchas veces','Alguna vez','No']],
+    ['Si mañana te pasara algo con una foto, ¿sabrías qué hacer primero?',['Sí, lo tengo claro','Más o menos','Ni idea']],
+    ['¿Sabes qué es un CEAS y cuál es el tuyo?',['Sí, y sé cuál es','Me suena','No sé qué es']],
+  ];
+  let ti=0;
+  S.test = ()=>{ ti=0; st.test={}; return testQ(); };
+  function testQ(){
+    const [q,opts]=TQ[ti];
+    return `${dots(ti+1,TQ.length)}<div class="qnum">Nada de esto pregunta por tu vida: pregunta qué has visto</div>
+      <h2 style="font-size:20px">${q}</h2>
+      ${opts.map((o,i)=>`<button class="opt" data-tq="${i}">${o}</button>`).join('')}`;
+  }
+  hooks.test = bindTest;
+  function bindTest(){
+    scr.querySelectorAll('[data-tq]').forEach(b=>b.onclick=()=>{
+      st.test[ti]=+b.dataset.tq; ti++;
+      if(ti<TQ.length){ scr.innerHTML=testQ(); bindTest(); window.scrollTo({top:0}); }
+      else go('norma');
+    });
+  }
+  S.norma = ()=>`
+    <div class="qnum">La última, y es la difícil</div>
+    <h2>De cada 10 personas de tu edad de tu pueblo, ¿cuántas dirían algo si vieran una foto así en el grupo?</h2>
+    <div class="slwrap"><input type="range" min="0" max="10" value="${st.norma}" id="slnorma" aria-label="De cada diez, cuántas dirían algo"><div class="slval" id="slnormaval">${st.norma}</div></div>
+    <div class="btnrow"><button class="btn" id="verEspejo">Ver mi espejo</button></div>`;
+  hooks.norma = ()=>{
+    const sl=$('#slnorma'), v=$('#slnormaval');
+    sl.oninput=()=>{v.textContent=sl.value; st.norma=+sl.value};
+    $('#verEspejo').onclick=()=>go('espejo');
+  };
+  S.espejo = ()=>{
+    const suena = [st.test[0],st.test[1],st.test[2],st.test[3]].filter(x=>x!==2).length;
+    const sabe = (st.test[4]===0?1:0)+(st.test[5]===0?1:0);
+    return `
+    <h2>Tu espejo</h2>
+    <p class="mut small">Comparado con las 368 personas de tu comarca que ya han contestado <span class="sim">(simulado)</span>.</p>
+    <div class="card pop">
+      <b>Lo que te rodea</b>
+      <div class="bars">
+        <div class="brow"><div class="lbl"><span>Tú: situaciones de control que te suenan</span><b>${suena} de 4</b></div><div class="track"><div class="fill" data-w="${suena*25}" style="width:0%"></div></div></div>
+        <div class="brow"><div class="lbl"><span>Media de tu comarca</span><b>2,9 de 4</b></div><div class="track"><div class="fill g" data-w="72" style="width:0%"></div></div></div>
+      </div>
+      <p class="mut xs" style="margin:0">El control cotidiano por el móvil es lo más visto en todas las comarcas. Que te suene no es casualidad: está en todas partes. Por eso tiene nombre.</p>
+    </div>
+    <div class="card pop">
+      <b>La brecha</b>
+      <p class="mut small" style="margin:6px 0 10px">Tú creíste que <b style="color:var(--text)">${st.norma} de 10</b> dirían algo al ver la foto en el grupo. De tu comarca contestaron que dirían algo…</p>
+      <div class="bignum">7 de 10</div>
+      <p class="mut xs" style="margin-top:8px">Casi todo el mundo cree que los demás pasarían. Y los demás creen lo mismo de ti. Esa distancia entre lo que se cree y lo que se contesta es exactamente lo que hace que nadie diga nada — y se rompe sabiéndola.</p>
+    </div>
+    <div class="card">
+      <b>Lo que sabes hacer</b>
+      <p class="mut small" style="margin:6px 0 0">Aciertas en ${sabe} de 2 sobre recursos. ${sabe<2?'Como casi todo el mundo: el 91% de tu comarca tampoco sabía qué es un CEAS (simulado). En dos minutos lo arreglamos.':'Estás en el 9% que lo sabe. Ahora ya puedes ser tú la que lo explique.'}</p>
+    </div>
+    <div class="btnrow">
+      <button class="btn" data-go="rutas">Dónde está tu gente</button>
+      <button class="btn ghost" data-go="semaforo">Ver el semáforo</button>
+    </div>`;
+  };
+  hooks.espejo = ()=>{ requestAnimationFrame(()=>requestAnimationFrame(()=>{ scr.querySelectorAll('.fill').forEach(f=>f.style.width=f.dataset.w+'%'); })); };
+
+  /* --- rutas --- */
+  const MUNIS = ['Alaejos','Ataquines','Cabezón de Pisuerga','Carpio','Cigales','Cistérniga','Fresno el Viejo','Íscar','Mayorga','Medina de Rioseco','Mojados','Mota del Marqués','Nava del Rey','Olmedo','Pedrajas de San Esteban','Peñafiel','Portillo','Serrada','Tordesillas','Tudela de Duero','Villalón de Campos','Villanubla','Zaratán'];
+  S.rutas = ()=>`
+    <h2>Dónde está tu gente</h2>
+    <p class="mut small">Elige tu pueblo. Te decimos tu CEAS, tu cuartel y cómo llegar. Sin cita y sin denunciar nada: se puede ir solo a contarlo.</p>
+    <select id="muni" aria-label="Elige tu municipio"><option value="">Elige tu pueblo…</option>${MUNIS.map(m=>`<option${m===st.municipio?' selected':''}>${m}</option>`).join('')}</select>
+    <div id="ficha">${st.municipio?ficha(st.municipio):''}</div>
+    <div class="card" style="margin-top:14px">
+      <div class="tel"><b>016</b><span>24 h · gratis · no sale en la factura</span></div>
+      <div class="tel"><b>017</b><span>INCIBE · para quitar contenido de internet</span></div>
+      <div class="tel"><b>900 20 20 10</b><span>ANAR · menores de 18 · 24 h</span></div>
+      <div class="tel"><b>112</b><span>peligro ahora mismo</span></div>
+    </div>`;
+  function ficha(m){
+    return `<div class="card pop" style="margin-top:12px">
+      <div class="sim">Ficha simulada · en la web real, verificada por teléfono el 12/11/2026</div>
+      <h3 style="margin-top:8px">${m}</h3>
+      <p class="small" style="margin-bottom:8px"><b>Tu CEAS</b> · <span class="mut">abre martes y jueves de 9 a 14. Desde tu pueblo sale el autobús de las 8:10. Puedes ir sin cita y sin denunciar nada, solo a contarlo.</span></p>
+      <p class="small" style="margin-bottom:8px"><b>Tu cuartel (Guardia Civil)</b> · <span class="mut">atención de 9 a 14 y de 16 a 19. Si está cerrado, el 062 desvía al puesto de guardia de la comarca.</span></p>
+      <p class="small" style="margin-bottom:0"><b>Punto de Información Juvenil</b> · <span class="mut">miércoles por la tarde. Sin cita.</span></p>
+    </div>`;
+  }
+  hooks.rutas = ()=>{ $('#muni').onchange = e=>{ st.municipio=e.target.value; $('#ficha').innerHTML = st.municipio?ficha(st.municipio):''; }; };
+
+  /* --- aula --- */
+  S.aula = ()=>`
+    <h2>Vengo de clase</h2>
+    <p class="mut small">El modo aula lo abre la orientadora, la técnica de igualdad o la informadora juvenil. Se proyecta un código, cada cual contesta desde su móvil, y en la pizarra nunca sale nada de nadie: sale lo que el grupo creía frente a lo que el grupo contestó.</p>
+    <div class="card pop" style="text-align:center">
+      <div class="sim">Código de sesión · simulado</div>
+      <div class="aula-code">3F&thinsp;7K</div>
+      <p class="mut xs" style="margin:0">Cada sesión de aula es a la vez actividad de prevención e investigación: mismo cuestionario, resultados agregados y anónimos.</p>
+    </div>
+    <div class="card pop">
+      <b>Lo que vería la clase en la pizarra</b>
+      <div class="bars" style="margin-top:10px">
+        <div class="brow"><div class="lbl"><span>«Creíamos que dirían algo…»</span><b>3 de 10</b></div><div class="track"><div class="fill" data-w="30" style="width:0%"></div></div></div>
+        <div class="brow"><div class="lbl"><span>«…y contestamos que diríamos algo»</span><b>8 de 10</b></div><div class="track"><div class="fill g" data-w="80" style="width:0%"></div></div></div>
+      </div>
+      <p class="mut xs" style="margin:0">Nunca se proyecta cuántos casos hay en el grupo — eso normaliza y señala. Se proyecta la brecha, que es lo que cambia comportamientos.</p>
+    </div>
+    <p class="mut small">Al terminar, todo el grupo recibe la misma tarjeta de recursos. Todo el grupo: nunca solo quien «da positivo».</p>`;
+  hooks.aula = ()=>{ requestAnimationFrame(()=>requestAnimationFrame(()=>{ scr.querySelectorAll('.fill').forEach(f=>f.style.width=f.dataset.w+'%'); })); };
+
+  /* --- trastienda --- */
+  S.trastienda = ()=>`
+    <h2>Qué guardamos (y qué no)</h2>
+    <h3 style="color:var(--verde)">Qué no guardamos</h3>
+    <ul class="clean">
+      <li>Tu nombre, tu correo o tu teléfono: no existen aquí, no hay dónde escribirlos.</li>
+      <li>Tu foto: esta web no pide, no recibe y no puede recibir imágenes. En ningún flujo.</li>
+      <li>Tu pueblo exacto: como mucho, tu zona — y solo si tú la eliges de una lista.</li>
+      <li>Tu IP, cookies, historial, identificador del móvil: nada. El botón SALIR YA además sustituye la página sin dejar rastro en tu historial.</li>
+      <li>Si tienes menos de 14 años: absolutamente nada, ni con tu permiso.</li>
+    </ul>
+    <h3 style="color:var(--ambar)">Qué guardamos, solo si tú dices que sí al final</h3>
+    <ul class="clean">
+      <li>Qué tipo de situación era, tu tramo de edad, tu zona y hasta qué paso llegaste. Cuatro datos, ningún nombre.</li>
+      <li>¿Para qué? Para que exista por primera vez la estadística de lo que pasa en los pueblos de esta provincia, y para saber dónde se rompe la cadena de ayuda. Con eso la Diputación decide dónde poner recursos.</li>
+      <li>Ninguna cifra con menos de 15 casos se publica jamás: en un pueblo pequeño, hasta una estadística puede señalar a alguien. Lo tenemos en cuenta por diseño.</li>
+    </ul>
+    <p class="mut small">Este proyecto es una investigación de la convocatoria de la Diputación de Valladolid (VII Plan de Igualdad), con dictamen del Comité de Ética de la Universidad de Valladolid. Esta demo, además, no guarda nada en absoluto.</p>`;
+
+  /* ---------- wiring ---------- */
+  document.addEventListener('click', e=>{
+    const d = e.target.closest('[data-done]');
+    if(d){ e.preventDefault(); e.stopPropagation(); d.classList.toggle('on'); return; }
+    const g = e.target.closest('[data-go]');
+    if(g){
+      if(g.dataset.t1) st.triaje.t1=g.dataset.t1;
+      if(g.dataset.t2) st.triaje.t2=g.dataset.t2;
+      go(g.dataset.go);
+    }
+  });
+
+  render('home');
+})();
+</script>
+</body>
+</html>
